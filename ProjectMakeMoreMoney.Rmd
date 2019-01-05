@@ -161,15 +161,25 @@ ggplot(summer17, aes(x=Temp, y=Hourly, color=Location)) +
 
 This confirmed my hypothesis. Tempuratures in the low 70s seemed to favor the lounge though. Most interestingly, increasing temperature raises the tips per hour in the dining room more than any other section. Rule 4: __High Tempurature, Work in the Patio__.
 
+###Model
+
+I fit two linear models to the data. One to predict daily tip total and another to predict tips per hour. The results confirmed my constructed rules from above. 
+
+```{r, echo=FALSE}
+fit_tips = lm(summer17$Tips ~ summer17$DayOfWeek + summer17$Location + summer17$Temp + summer17$Precip)
+
+fit_hourly = lm(summer17$Hourly ~ summer17$DayOfWeek + summer17$Location + summer17$Temp + summer17$Precip)
+```
+
 ### Conclusion
 
 After my analysis, I came away with four rules:  
-* __Don't Work in the dining room__  
+* __Don't Work in the Dining Room__  
 * __Prioritize working on Friday, Saturday, Sunday and Wednesday__  
 * __Possible Bad Weather? Don't Move Sections__  
 * __High Tempurature, Work in the Patio__  
 
-I altered my scheduling requests to account for these rules. Here are the results.
+Now, I don't have complete control over when and where I am scheduled but I altered my scheduling requests to account for these rules. Here are the results.
 
 ```{r, include=FALSE}
 count(summer17[which(summer17$Location == "D"),]) / count(summer17[,1])
@@ -224,6 +234,7 @@ ggplot(summers, aes(x=MonthDay, y=Hourly, color=factor(year(Date)))) +
   scale_color_manual(labels=c("Local Mean Tips 2017", "Local Mean Tips 2018"), values=c("#CD5C5C", "#7BB9E5")) +
   labs(color='Year')
 ```
+
 
 ##__Summary__
 
