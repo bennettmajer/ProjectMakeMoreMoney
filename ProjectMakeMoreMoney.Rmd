@@ -1,0 +1,231 @@
+---
+title: 'Project: Make More Money'
+author: "Bennett Majerowski"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r, include=FALSE}
+rm(list = ls())
+setwd("~/Documents/ProjectMakeMoreMoney")
+require(tidyverse)
+library(lubridate)
+dat = read_csv("EarningsData.csv")
+
+dat$DayOfWeek = as.factor(dat$DayOfWeek)
+dat$Location = as.factor(dat$Location)
+dat$Precip = as.factor(dat$Precip)
+
+first_regex = regexpr("(?:.*?/){2}", dat$Date)
+first_part = regmatches(dat$Date, first_regex)
+second_regex = regexpr("..$", dat$Date)
+second_part = regmatches(dat$Date, second_regex)
+dat$Date = paste(first_part, second_part, sep="")
+dat$Date = as.Date(dat$Date, format = "%m/%d/%y")
+
+dat = dat[-which(dat$Location=="I"),]
+
+summer17 = dat[1:83,]
+year17_18 = dat[1:151,]
+summer18 = dat[152:217,]
+
+# COLORS
+# red #FF0000
+# blue #0000FF
+# green #008000
+# "#CD5C5C", "#7BB9E5", "#536D67"
+```
+###Introduction
+From May 2017 through March 2018, I worked as a server at a restaurant. I had collected date throughout this whole time to keep track of my hours worked and my tips earned. In May 2018, I decided to return to this job for the summer of 2018. Since I still had all of the data, I performed a statistical analysis to determine factors that influenced how much I earned. I hoped to generate a set of rules that, when followed, would enable me to maximize my earnings for the next summer.
+
+###Preprocessing
+There were a few items in the data that needed attention. First, I served three private parties throughout the entire time I spent at the restaurant. As these were unusual occurrences, I removed these points.
+
+##__Summer of 2017__
+
+###Initial Exploration
+
+Summary of Tips, Hours worked, and Tips per hour for the summer:
+```{r, echo=FALSE}
+summary(summer17[,c(7,8,11)])
+```
+
+Here I look at the trend of my earnings over the summer of 2017.
+
+```{r, echo=FALSE}
+ggplot(summer17, aes(x=Date, y=Tips)) +
+  geom_point() + 
+  geom_smooth(method='lm', se=FALSE, color="#000000") +
+  xlab("Date") + 
+  ylab("Tips ($)") +
+  ggtitle("Tips vs. Date (5/8/17-9/3/17)")
+```
+
+Here it looks as though my earnings increased over the course of the summer.
+
+###Location
+
+In my restaurant, there are three distinct locations to work that likely impact my earnings. They are: the dining room, the cocktail lounge and the patio. In the dining room, customers generally have reservations and they eat a full meal often with drinks. In the lounge and patio, most customers come for drinks and appetizers only, though some have full meals. There are no reservations in the lounge and patio sections.
+
+```{r, echo=FALSE}
+ggplot(summer17, aes(x=Date, y=Tips, color=Location)) +
+  geom_point() + 
+  geom_smooth(method='lm', se=FALSE) +
+  xlab("Date") + 
+  ylab("Tips ($)") +
+  ggtitle("Tips vs. Date (5/8/17-9/3/17)") +
+  scale_color_manual(labels=c("Dining Room", "Patio", "Lounge"), values=c("#CD5C5C", "#7BB9E5", "#536D67"))
+```
+
+Now we can see that my earnings did not change very much over the course of the summer when we account for the location in the restaurant where I worked. The reason for the upward trend in the first chart is that I stopped working in the dining room around the beginning of August and my earnings are greater in the patio and the lounge in general.
+
+The length of a shift in the dining room is much shorter than the length of a shift in the lounge or patio so the fact that I make more in the patio or lounge than the dining room is no surprise.
+
+```{r, echo=FALSE}
+ggplot(summer17, aes(x=Date, y=Hourly, color=Location)) +
+  geom_point() + 
+  geom_smooth(method='lm', se=FALSE) +
+  xlab("Date") + 
+  ylab("Tips per Hour ($/hr)") +
+  ggtitle("Tips per Hour vs. Date (5/8/17-9/3/17)") +
+  scale_color_manual(labels=c("Dining Room", "Patio", "Lounge"), values=c("#CD5C5C", "#7BB9E5", "#536D67"))
+```
+
+Here we see that the dining room is still less profitable than the lounge or patio. So here I derive the first rule: __Don't Work in the Dining Room__.
+
+###Day of the Week
+
+It is no secret that a restaurant is busier on the weekend than weekdays. The management has enough servers working to account for the number of expected customers. As such, there are more servers working on the weekend. In general, the number of customers per server is a constant. Even so, is there advantage to working on specific days of the week?
+
+```{r, echo=FALSE}
+ggplot(summer17, aes(x=DayOfWeek, y=Tips)) +
+  geom_boxplot() + 
+  xlab("Day of the Week") + 
+  ylab("Tips ($)") +
+  ggtitle("Tips vs. Day of the Week (5/8/17-9/3/17)") +
+  scale_x_discrete(limits=c("M", "T", "W", "R", "F", "S", "N"))
+```
+
+One interesting outlier here is the Sunday where I made over 300 dollars. I looked into this and it turns out it was May 28 and the following day was Memorial Day. This renders the Sunday essentially a weekend day, and not truly representative of a Sunday.
+
+This plot shows that Friday and Saturday are the best days for tips. My restaurant stays open an hour later and Friday and Saturday, so again we encounter the same problem as earlier. We must look at the hourly pay as well.
+
+```{r, echo=FALSE}
+ggplot(summer17, aes(x=DayOfWeek, y=Hourly)) +
+  geom_boxplot() + 
+  geom_smooth(method='lm', se=FALSE) +
+  xlab("Day of the Week") + 
+  ylab("Tips per Hour ($/hr)") +
+  ggtitle("Tips per Hour vs. Day of the Week (5/8/17-9/3/17)") +
+  scale_x_discrete(limits=c("M", "T", "W", "R", "F", "S", "N"))
+```
+
+We can see that Friday and Saturday are still the best days but Sunday and Wednesday also are good days with averages around $150. Thursday, despite its illusion of being a busy restaurant day, is surprisingly terrible. Monday has a similar average but a much wider spread than Wednesday. Rule 2: __Prioritize working on Friday, Saturday, Sunday and Wednesday__.
+
+### Weather
+
+The patio is uncovered at my restaurant so if it rains, the patio loses the majority of our potential customers. These customers will likely find a table in the lounge or the dining room. Needless to say, the weather plays crucial importance in the earnings of patio servers.
+
+```{r, echo=FALSE}
+ggplot(summer17, aes(x=Precip, y=Hourly, color=Location)) +
+  geom_boxplot() + 
+  xlab("Did it Rain?") + 
+  ylab("Tips per Hour ($/hr)") +
+  ggtitle("Tips per Hour vs. Precipitation (5/8/17-9/3/17)") +
+  scale_x_discrete(limits=c("Y", "N")) +
+  scale_color_manual(labels=c("Dining Room", "Patio", "Lounge"), values=c("#CD5C5C", "#7BB9E5", "#536D67"))
+```
+
+Interestingly, working in the dining room is worse when it rains. I had assumed that some of the customers who move from the patio would end up in the dining room. It is actually worse when it rains.
+
+Overall, the money is better when it doesn't rain. Unfortunately, I don't have control over the rain. I do, however, have control over the location where I work. When the forcast shows possible rain, my gut instinct is to try to work in the lounge. This is actually a poor move. In the case that it does rain, I make very slightly more per hour in the lounge than in the patio. If the forecast is wrong and it does not rain but I switched from the patio to the lounge, I lose two dollars per hour. Rule 3: __Possible Bad Weather? Don't Move Sections__.
+
+###Tempurature
+
+Our restaurant had terrible air conditioning and the summer heat sometimes made the lounge unbearable. My hypothesis is that if the tempurature is high, then the best place to work is the patio.
+
+```{r, echo=FALSE}
+ggplot(summer17, aes(x=Temp, y=Hourly, color=Location)) +
+  geom_point() + 
+  geom_smooth(method='lm', se=FALSE) +
+  xlab("Tempurature (F)") + 
+  ylab("Tips per Hour ($/hr)") +
+  ggtitle("Tips per Hour vs. Tempurature (5/8/17-9/3/17)") +
+  scale_color_manual(labels=c("Dining Room", "Patio", "Lounge"), values=c("#CD5C5C", "#7BB9E5", "#536D67"))
+```
+
+This confirmed my hypothesis. Tempuratures in the low 70s seemed to favor the lounge though. Most interestingly, increasing temperature raises the tips per hour in the dining room more than any other section. Rule 4: __High Tempurature, Work in the Patio__.
+
+### Conclusion
+
+After my analysis, I came away with four rules:  
+* __Don't Work in the dining room__  
+* __Prioritize working on Friday, Saturday, Sunday and Wednesday__  
+* __Possible Bad Weather? Don't Move Sections__  
+* __High Tempurature, Work in the Patio__  
+
+I altered my scheduling requests to account for these rules. Here are the results.
+
+```{r, include=FALSE}
+count(summer17[which(summer17$Location == "D"),]) / count(summer17[,1])
+count(summer18[which(summer18$Location == "D"),]) / count(summer18[,1])
+
+count(summer17[which(summer17$DayOfWeek == "W" | 
+                       summer17$DayOfWeek == "F" | 
+                       summer17$DayOfWeek == "S" | 
+                       summer17$DayOfWeek == "N"),]) / count(summer17[,1])
+count(summer18[which(summer18$DayOfWeek == "W" | 
+                       summer18$DayOfWeek == "F" | 
+                       summer18$DayOfWeek == "S" | 
+                       summer18$DayOfWeek == "N"),]) / count(summer18[,1])
+
+count(summer17[which(summer17$Temp >= 85 & summer17$Location == "N"),]) / count(summer17[which(summer17$Temp >= 80),])
+count(summer18[which(summer18$Temp >= 85 & summer18$Location == "N"),]) / count(summer18[which(summer18$Temp >= 80),])
+```
+
+| | Summer of 2017 | Summer of 2018 |
+|-|----------------|----------------|
+| Ratio of days in the dining room to total days | 0.205 | 0.137 |
+| Ratio of days working W, F, S, N to total days | 0.639 | 0.652 |
+| Ratio of hot days (>85F) on the patio to total hot days | 0.185 | 0.25 |  
+
+## __Summer of 2018__
+```{r, echo=FALSE}
+#summer17$Year = as.factor(17)
+#summer18$Year = as.factor(18)
+summers = rbind(summer17, summer18)
+summers$MonthDay = format(summers$Date, format="%m-%d")
+summers$MonthDay = as.Date(paste(summers$MonthDay, "-2018", sep=""), format="%m-%d-%Y")
+
+ggplot(summers, aes(x=MonthDay, y=Tips, color=factor(year(Date)))) +
+  geom_point() + 
+  geom_smooth(method='loess', se=FALSE, span=1) +
+  xlab("Date") + 
+  ylab("Tips ($)") +
+  ggtitle("Tips vs. Date") +
+  scale_color_manual(labels=c("Local Mean Tips 2017", "Local Mean Tips 2018"), values=c("#CD5C5C", "#7BB9E5")) +
+  labs(color='Year')
+```
+
+As you can see, the moving average tips for 2018 are entirely above that of 2017. There are similar results for tips per hour.
+
+```{r, echo=FALSE}
+ggplot(summers, aes(x=MonthDay, y=Hourly, color=factor(year(Date)))) +
+  geom_point() + 
+  geom_smooth(method='loess', se=FALSE, span=1) +
+  xlab("Date") + 
+  ylab("Tips per Hour ($/hr)") +
+  ggtitle("Tips per Hour vs. Date") +
+  scale_color_manual(labels=c("Local Mean Tips 2017", "Local Mean Tips 2018"), values=c("#CD5C5C", "#7BB9E5")) +
+  labs(color='Year')
+```
+
+##__Summary__
+
+| | Summer of 2017 | Summer of 2018 |
+|-|----------------|----------------|
+| Mean Tips per Day | 150.64 | 169.11 |
+| Mean Tips per Hour | 20.06 | 22.33 |
